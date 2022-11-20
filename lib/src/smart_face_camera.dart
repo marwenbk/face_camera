@@ -74,23 +74,26 @@ class _SmartFaceCameraState extends State<SmartFaceCamera>
     CameraOrientation? orientation = CameraOrientation.portraitUp;
     final nativeOrientation = await NativeDeviceOrientationCommunicator()
         .orientation(useSensor: true);
-    switch (nativeOrientation) {
-      case NativeDeviceOrientation.landscapeLeft:
-        orientation = CameraOrientation.landscapeRight;
-        break;
-      case NativeDeviceOrientation.landscapeRight:
-        orientation = CameraOrientation.landscapeLeft;
-        break;
-      case NativeDeviceOrientation.portraitDown:
-        orientation = CameraOrientation.portraitDown;
-        break;
-      case NativeDeviceOrientation.portraitUp:
-        orientation = CameraOrientation.portraitUp;
-        break;
+    if (Platform.isIOS) {
+      switch (nativeOrientation) {
+        case NativeDeviceOrientation.landscapeLeft:
+          orientation = CameraOrientation.landscapeRight;
+          break;
+        case NativeDeviceOrientation.landscapeRight:
+          orientation = CameraOrientation.landscapeLeft;
+          break;
+        case NativeDeviceOrientation.portraitDown:
+          orientation = CameraOrientation.portraitDown;
+          break;
+        case NativeDeviceOrientation.portraitUp:
+          orientation = CameraOrientation.portraitUp;
+          break;
 
-      default:
-        break;
+        default:
+          break;
+      }
     }
+    orientation = CameraOrientation.portraitUp;
     await _controller!
         .lockCaptureOrientation(
             EnumHandler.cameraOrientationToDeviceOrientation(orientation))
@@ -277,8 +280,6 @@ class _SmartFaceCameraState extends State<SmartFaceCamera>
                 : null);
   }
 
-  String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
-
   void showInSnackBar(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -297,26 +298,6 @@ class _SmartFaceCameraState extends State<SmartFaceCamera>
     );
     cameraController.setExposurePoint(offset);
     cameraController.setFocusPoint(offset);
-  }
-
-  Future<XFile?> takePicture() async {
-    assert(_controller != null, 'Camera controller not initialized');
-    if (_controller!.value.isTakingPicture) {
-      // A capture is already pending, do nothing.
-      return null;
-    }
-    try {
-      XFile file = await _controller!.takePicture();
-      return file;
-    } on CameraException catch (e) {
-      _showCameraException(e);
-      return null;
-    }
-  }
-
-  void _showCameraException(CameraException e) {
-    logError(e.code, e.description);
-    showInSnackBar('Error: ${e.code}\n${e.description}');
   }
 
   void _startImageStream() {
@@ -338,9 +319,6 @@ class _SmartFaceCameraState extends State<SmartFaceCamera>
           try {
             if (result.wellPositioned) {
               await _controller!.stopImageStream();
-              await Future.delayed(
-                  const Duration(milliseconds: 500)); // to capture the flash
-              // XFile? file = await takePicture();
               await widget.onCapture(cameraImage, _detectedFace?.face);
               _startImageStream();
             }
